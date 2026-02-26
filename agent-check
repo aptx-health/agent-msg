@@ -1,0 +1,23 @@
+#!/bin/bash
+# Usage: agent-check [topic-prefix]
+# Example: agent-check ripit/infra   (exact topic)
+# Example: agent-check ripit          (everything under ripit/*)
+# Example: agent-check                (all unread)
+
+DB="$HOME/repos/agent-msg/messages.db"
+
+PREFIX="${1:-}"
+
+if [ -z "$PREFIX" ]; then
+  RESULTS=$(sqlite3 -header -column "$DB" "SELECT id, topic, sender, message, created_at FROM messages WHERE read=0 ORDER BY created_at;")
+elif echo "$PREFIX" | grep -q '/'; then
+  RESULTS=$(sqlite3 -header -column "$DB" "SELECT id, topic, sender, message, created_at FROM messages WHERE topic='$PREFIX' AND read=0 ORDER BY created_at;")
+else
+  RESULTS=$(sqlite3 -header -column "$DB" "SELECT id, topic, sender, message, created_at FROM messages WHERE (topic='$PREFIX' OR topic LIKE '$PREFIX/%') AND read=0 ORDER BY created_at;")
+fi
+
+if [ -z "$RESULTS" ]; then
+  echo "No unread messages${PREFIX:+ matching [$PREFIX]}"
+else
+  echo "$RESULTS"
+fi

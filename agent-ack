@@ -1,0 +1,30 @@
+#!/bin/bash
+# Usage: agent-ack <id|all> [topic-prefix]
+# Example: agent-ack 5              (mark message 5 as read)
+# Example: agent-ack all ripit/infra (mark all ripit/infra as read)
+# Example: agent-ack all ripit       (mark all ripit/* as read)
+# Example: agent-ack all             (mark everything as read)
+
+DB="$HOME/repos/agent-msg/messages.db"
+
+if [ $# -lt 1 ]; then
+  echo "Usage: agent-ack <id|all> [topic-prefix]"
+  exit 1
+fi
+
+if [ "$1" = "all" ]; then
+  PREFIX="${2:-}"
+  if [ -z "$PREFIX" ]; then
+    sqlite3 "$DB" "UPDATE messages SET read=1 WHERE read=0;"
+    echo "Marked all messages as read"
+  elif echo "$PREFIX" | grep -q '/'; then
+    sqlite3 "$DB" "UPDATE messages SET read=1 WHERE topic='$PREFIX' AND read=0;"
+    echo "Marked all [$PREFIX] messages as read"
+  else
+    sqlite3 "$DB" "UPDATE messages SET read=1 WHERE (topic='$PREFIX' OR topic LIKE '$PREFIX/%') AND read=0;"
+    echo "Marked all [$PREFIX/*] messages as read"
+  fi
+else
+  sqlite3 "$DB" "UPDATE messages SET read=1 WHERE id=$1;"
+  echo "Marked message $1 as read"
+fi

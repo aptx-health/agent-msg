@@ -1,0 +1,21 @@
+#!/bin/bash
+# Usage: agent-pub <project/channel> <message>
+# Example: agent-pub ripit/infra "Prisma schema changed - new category field"
+# Example: agent-pub homelab/plex "New media synced"
+
+DB="$HOME/repos/agent-msg/messages.db"
+SENDER="${AGENT_NAME:-unknown}"
+
+if [ $# -lt 2 ]; then
+  echo "Usage: agent-pub <project/channel> <message>"
+  echo "Set AGENT_NAME env var to identify sender"
+  exit 1
+fi
+
+TOPIC="$1"
+shift
+MSG="$*"
+
+sqlite3 "$DB" "INSERT INTO messages (topic, sender, message) VALUES ('$TOPIC', '$SENDER', '$(echo "$MSG" | sed "s/'/''/g")');"
+
+echo "[$SENDER -> $TOPIC]: $MSG"
