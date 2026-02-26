@@ -8,6 +8,36 @@ When you have AI agents (Claude Code, Cursor, Aider, etc.) working in related re
 
 agent-msg is the simplest thing that works: a shared SQLite database with three bash scripts.
 
+## Use cases
+
+### Cross-repo coordination
+
+You have an app repo and an infrastructure repo. An agent working on the app changes the database schema. It publishes a message so the infra agent knows to update the worker:
+
+```bash
+# App agent
+agent-pub myproject/infra "Added email_verified column to User table - update worker queries"
+
+# Infra agent checks later
+agent-check myproject/infra
+```
+
+Works for any set of related repos: frontend/backend, monorepo services, app/deploy configs, client/server, etc.
+
+### Git worktree isolation
+
+You have multiple agents working on the same repo in different git worktrees (e.g., one on a feature branch, another on a bugfix). They need to avoid stepping on each other:
+
+```bash
+# Agent on feature/auth branch
+agent-pub myapp/worktree "Refactoring lib/db.ts - don't modify until I'm done"
+
+# Agent on fix/login branch checks before touching shared files
+agent-check myapp/worktree
+```
+
+Prevents merge conflicts and wasted work when agents modify overlapping files across worktrees.
+
 ## Requirements
 
 - bash
@@ -96,15 +126,26 @@ You can use whatever hierarchy makes sense for your setup.
 
 ## AI agent integration
 
-Add something like this to each repo's context file (e.g., `CLAUDE.md`, `.cursorrules`, etc.):
+### Claude Code skill (recommended)
+
+Copy the skill to your Claude Code skills directory:
+
+```bash
+mkdir -p ~/.claude/skills/agent-msg
+cp skill/SKILL.md ~/.claude/skills/agent-msg/SKILL.md
+```
+
+This lets Claude Code automatically understand and use the messaging commands. Say things like "check my messages" or "notify the backend agent that the API changed".
+
+### Manual setup
+
+Alternatively, add something like this to each repo's context file (e.g., `CLAUDE.md`, `.cursorrules`, etc.):
 
 ```markdown
 ## Agent Messaging
 This agent is `my-backend`. Periodically check for messages with `agent-check myproject/backend`.
 When making changes that affect other repos, notify them with `agent-pub myproject/<channel> <message>`.
 ```
-
-Your AI agent will pick up the instructions and use the commands naturally.
 
 ## Configuration
 
