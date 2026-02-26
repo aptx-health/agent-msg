@@ -1,0 +1,103 @@
+#!/bin/bash
+# Usage: agent-whoami [repo-name]
+# Generate a unique agent identity: repo name + random gentleman name.
+# Each agent gets a different name. If no repo-name given, detects from git.
+#
+# Example: agent-whoami              (auto-detect from git repo)
+# Example: agent-whoami my-project   (explicit repo name)
+#
+# Output: repo-name/Cornelius (e.g. ripit/Humphrey, ripit/Bartholomew)
+
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do SOURCE="$(readlink "$SOURCE")"; done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+
+NAMES=(
+  Archibald
+  Bartholomew
+  Cornelius
+  Desmond
+  Edmund
+  Ferdinand
+  Gerald
+  Humphrey
+  Ignatius
+  Jasper
+  Kingsley
+  Leopold
+  Montgomery
+  Norbert
+  Oswald
+  Percival
+  Quincy
+  Reginald
+  Seymour
+  Thaddeus
+  Ulysses
+  Vernon
+  Wilbur
+  Xavier
+  Yorick
+  Zebediah
+  Alastair
+  Barnaby
+  Clarence
+  Dudley
+  Ebenezer
+  Fitzwilliam
+  Godfrey
+  Herbert
+  Inglebert
+  Jedidiah
+  Kermit
+  Linus
+  Mortimer
+  Neville
+  Obadiah
+  Phineas
+  Quentin
+  Rupert
+  Sheldon
+  Tobias
+  Uriah
+  Virgil
+  Winslow
+  Zebulon
+)
+
+REPO="${1:-}"
+
+if [ -z "$REPO" ]; then
+  REPO=$(git rev-parse --show-toplevel 2>/dev/null | xargs basename 2>/dev/null)
+  if [ -z "$REPO" ]; then
+    REPO=$(basename "$PWD")
+  fi
+fi
+
+DB="${AGENT_MSG_DB:-$SCRIPT_DIR/messages.db}"
+
+# Get names already claimed for this repo in the last 24h
+TAKEN=$(sqlite3 "$DB" "SELECT name FROM agent_names WHERE repo='$REPO' AND claimed_at >= datetime('now', '-24 hours');")
+
+# Shuffle names and pick the first one not taken
+NAME=""
+SHUFFLED=($(printf '%s\n' "${NAMES[@]}" | sort -R))
+for CANDIDATE in "${SHUFFLED[@]}"; do
+  if ! echo "$TAKEN" | grep -qx "$CANDIDATE"; then
+    NAME="$CANDIDATE"
+    break
+  fi
+done
+
+if [ -z "$NAME" ]; then
+  echo "Error: all 50 names are taken for repo '$REPO'" >&2
+  exit 1
+fi
+
+# Claim it (upsert to refresh timestamp if somehow stale row exists)
+sqlite3 "$DB" "INSERT INTO agent_names (repo, name) VALUES ('$REPO', '$NAME')
+  ON CONFLICT(repo, name) DO UPDATE SET claimed_at=datetime('now');"
+
+IDENTITY="$REPO/$NAME"
+
+echo "$IDENTITY"

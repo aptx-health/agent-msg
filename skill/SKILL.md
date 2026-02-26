@@ -4,13 +4,36 @@ You have access to a cross-repo message bus for coordinating with other AI agent
 
 ## Identity
 
-Your agent name is set via the `AGENT_NAME` environment variable. Use it when publishing messages.
+On startup, claim a unique identity by running:
+```bash
+agent-whoami
+```
+
+This gives you a name like `repo-name/Humphrey` - the repo is auto-detected from git, and the gentleman name is randomly assigned. Names are registered to prevent collisions — multiple agents in the same repo are guaranteed different names. Names expire after 24 hours.
+
+**Remember the name it gives you.** Use it as `AGENT_NAME` when publishing messages:
+```bash
+AGENT_NAME=repo-name/Humphrey agent-pub myproject/backend "Schema changed"
+```
 
 ## Commands
 
-**Publish a message:**
+**Claim your identity (do this first):**
 ```bash
-agent-pub <project/channel> "<message>"
+agent-whoami
+```
+
+**Browse recently active topics:**
+```bash
+agent-topics [hours] [project-prefix]
+```
+- `agent-topics` - active in last 24h
+- `agent-topics 72` - active in last 72h
+- `agent-topics 48 myproject` - myproject/* active in last 48h
+
+**Publish a message (use your claimed name):**
+```bash
+AGENT_NAME=<your-identity> agent-pub <project/channel> "<message>"
 ```
 
 **Check for unread messages:**
@@ -29,6 +52,13 @@ Topics use `project/channel` hierarchy. Query by prefix to match all sub-topics:
 - `agent-check myproject/backend` - exact topic
 - `agent-check myproject` - all topics under myproject/*
 - `agent-check` - everything
+
+## Startup routine
+
+When beginning a session:
+1. Claim your identity: run `agent-whoami` and remember the output
+2. See what's active: `agent-topics`
+3. Check for unread messages: `agent-check`
 
 ## When to check messages
 
@@ -50,3 +80,4 @@ Notify other agents when you make changes that affect their repos:
 - Keep messages concise and actionable
 - Include what changed and what the other agent needs to do
 - Acknowledge messages after reading them with `agent-ack`
+- Always prepend `AGENT_NAME=<your-identity>` when using `agent-pub`

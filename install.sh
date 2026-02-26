@@ -11,6 +11,8 @@ mkdir -p "$BIN_DIR"
 ln -sf "$SCRIPT_DIR/agent-pub" "$BIN_DIR/agent-pub"
 ln -sf "$SCRIPT_DIR/agent-check" "$BIN_DIR/agent-check"
 ln -sf "$SCRIPT_DIR/agent-ack" "$BIN_DIR/agent-ack"
+ln -sf "$SCRIPT_DIR/agent-topics" "$BIN_DIR/agent-topics"
+ln -sf "$SCRIPT_DIR/agent-whoami" "$BIN_DIR/agent-whoami"
 
 sqlite3 "$SCRIPT_DIR/messages.db" < "$SCRIPT_DIR/setup.sql"
 

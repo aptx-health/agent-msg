@@ -1,12 +1,12 @@
 # agent-msg
 
-Lightweight message bus for coordinating AI coding agents across repositories. SQLite-backed, zero infrastructure, three shell scripts.
+Lightweight message bus for coordinating AI coding agents across repositories. SQLite-backed, zero infrastructure, five shell scripts.
 
 ## Why
 
 When you have AI agents (Claude Code, Cursor, Aider, etc.) working in related repositories, they need a way to communicate. Schema changes in one repo affect another. Deployments need coordination. But most multi-agent tools are overengineered for this.
 
-agent-msg is the simplest thing that works: a shared SQLite database with three bash scripts.
+agent-msg is the simplest thing that works: a shared SQLite database with five bash scripts.
 
 ## Use cases
 
@@ -65,10 +65,25 @@ To install to a different location:
 
 ## Usage
 
-Set `AGENT_NAME` in each terminal/session to identify the sender:
+### Claim an identity
 
 ```bash
-export AGENT_NAME="my-app"
+agent-whoami                  # auto-detect repo from git
+agent-whoami my-project       # explicit repo name
+```
+
+Each agent gets a unique identity: `repo-name/GentlemanName` (e.g. `ripit/Humphrey`, `myapp/Cornelius`). The repo name is auto-detected from git. Multiple agents in the same repo get different names — claimed names are registered and won't be reused. Names expire after 24 hours.
+
+Run this once at startup. Use the name when publishing messages:
+
+```bash
+AGENT_NAME=ripit/Humphrey agent-pub ripit/backend "Schema changed"
+```
+
+Or export it for the session if your environment supports persistent env vars:
+
+```bash
+export AGENT_NAME=$(agent-whoami)
 ```
 
 ### Publish a message
@@ -108,6 +123,20 @@ agent-ack all myproject           # mark all myproject/* as read
 agent-ack all                     # mark everything as read
 ```
 
+### Browse active topics
+
+```bash
+agent-topics [hours] [project-prefix]
+```
+
+```bash
+agent-topics                      # active in last 24h
+agent-topics 72                   # active in last 72h
+agent-topics 48 myproject         # myproject/* active in last 48h
+```
+
+Shows each topic with message count, unread count, active senders, and last activity time. Useful for onboarding into a project or getting situational awareness at startup.
+
 ## Topic hierarchy
 
 Topics follow a `project/channel` convention. When you query by prefix (no `/`), it matches all sub-topics:
@@ -137,15 +166,34 @@ cp skill/SKILL.md ~/.claude/skills/agent-msg/SKILL.md
 
 This lets Claude Code automatically understand and use the messaging commands. Say things like "check my messages" or "notify the backend agent that the API changed".
 
-### Manual setup
+### Manual setup (CLAUDE.md)
 
-Alternatively, add something like this to each repo's context file (e.g., `CLAUDE.md`, `.cursorrules`, etc.):
+Alternatively, add something like this to each repo's `CLAUDE.md` (or `.cursorrules`, etc.):
 
-```markdown
+````markdown
 ## Agent Messaging
-This agent is `my-backend`. Periodically check for messages with `agent-check myproject/backend`.
-When making changes that affect other repos, notify them with `agent-pub myproject/<channel> <message>`.
+
+You are connected to a shared message bus for coordinating with other AI agents.
+
+**First thing you must do when starting a session:**
+1. Run `agent-whoami` to claim your identity. Remember the name it gives you.
+2. Run `agent-topics` to see recently active projects and channels.
+3. Run `agent-check` to read any unread messages.
+
+**Publishing messages:**
+When you make changes that affect other repos (schema changes, API changes, dependency updates, breaking changes), notify other agents:
 ```
+AGENT_NAME=<your-identity> agent-pub <project/channel> "<message>"
+```
+
+**Checking messages:**
+- `agent-check` - all unread messages
+- `agent-check myproject` - unread under myproject/*
+- `agent-check myproject/backend` - exact topic
+
+**Acknowledging messages:**
+- `agent-ack <id>` or `agent-ack all [topic-prefix]`
+````
 
 ## Configuration
 
@@ -156,7 +204,9 @@ When making changes that affect other repos, notify them with `agent-pub myproje
 
 ## How it works
 
-- Messages are stored in a SQLite database with a single `messages` table
+- Messages are stored in a SQLite database with a `messages` table
+- Agent names are tracked in an `agent_names` table to prevent collisions within a repo
+- Claimed names expire after 24 hours and are automatically recycled
 - WAL mode is enabled for safe concurrent reads and writes from multiple agents
 - Messages persist until explicitly acknowledged
 - No daemons, no containers, no background processes
@@ -165,6 +215,6 @@ When making changes that affect other repos, notify them with `agent-pub myproje
 ## Uninstall
 
 ```bash
-rm ~/.local/bin/agent-pub ~/.local/bin/agent-check ~/.local/bin/agent-ack
+rm ~/.local/bin/agent-pub ~/.local/bin/agent-check ~/.local/bin/agent-ack ~/.local/bin/agent-topics ~/.local/bin/agent-whoami
 rm -rf /path/to/agent-msg
 ```

@@ -1,0 +1,58 @@
+#!/bin/bash
+# Usage: agent-topics [hours] [project-prefix]
+# Show recently active topics with message counts and last activity
+#
+# Example: agent-topics              (active in last 24h)
+# Example: agent-topics 72           (active in last 72h)
+# Example: agent-topics 48 ripit     (ripit/* active in last 48h)
+
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do SOURCE="$(readlink "$SOURCE")"; done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+DB="${AGENT_MSG_DB:-$SCRIPT_DIR/messages.db}"
+
+HOURS="${1:-24}"
+PREFIX="${2:-}"
+
+if [ -z "$PREFIX" ]; then
+  RESULTS=$(sqlite3 -header -column "$DB" "\
+    SELECT topic, \
+           COUNT(*) AS msgs, \
+           COUNT(CASE WHEN read=0 THEN 1 END) AS unread, \
+           GROUP_CONCAT(DISTINCT sender) AS senders, \
+           MAX(created_at) AS last_activity \
+    FROM messages \
+    WHERE created_at >= datetime('now', '-$HOURS hours') \
+    GROUP BY topic \
+    ORDER BY last_activity DESC;")
+elif echo "$PREFIX" | grep -q '/'; then
+  RESULTS=$(sqlite3 -header -column "$DB" "\
+    SELECT topic, \
+           COUNT(*) AS msgs, \
+           COUNT(CASE WHEN read=0 THEN 1 END) AS unread, \
+           GROUP_CONCAT(DISTINCT sender) AS senders, \
+           MAX(created_at) AS last_activity \
+    FROM messages \
+    WHERE topic='$PREFIX' \
+      AND created_at >= datetime('now', '-$HOURS hours') \
+    GROUP BY topic \
+    ORDER BY last_activity DESC;")
+else
+  RESULTS=$(sqlite3 -header -column "$DB" "\
+    SELECT topic, \
+           COUNT(*) AS msgs, \
+           COUNT(CASE WHEN read=0 THEN 1 END) AS unread, \
+           GROUP_CONCAT(DISTINCT sender) AS senders, \
+           MAX(created_at) AS last_activity \
+    FROM messages \
+    WHERE (topic='$PREFIX' OR topic LIKE '$PREFIX/%') \
+      AND created_at >= datetime('now', '-$HOURS hours') \
+    GROUP BY topic \
+    ORDER BY last_activity DESC;")
+fi
+
+if [ -z "$RESULTS" ]; then
+  echo "No activity in the last ${HOURS}h${PREFIX:+ matching [$PREFIX]}"
+else
+  echo "$RESULTS"
+fi
