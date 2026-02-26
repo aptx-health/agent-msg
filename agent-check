@@ -4,7 +4,10 @@
 # Example: agent-check ripit          (everything under ripit/*)
 # Example: agent-check                (all unread)
 
-DB="$HOME/repos/agent-msg/messages.db"
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do SOURCE="$(readlink "$SOURCE")"; done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+DB="${AGENT_MSG_DB:-$SCRIPT_DIR/messages.db}"
 
 PREFIX="${1:-}"
 

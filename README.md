@@ -1,90 +1,129 @@
 # agent-msg
 
-Lightweight cross-repo message bus for AI coding agents. SQLite-backed, zero infrastructure.
+Lightweight message bus for coordinating AI coding agents across repositories. SQLite-backed, zero infrastructure, three shell scripts.
 
-## Setup
+## Why
+
+When you have AI agents (Claude Code, Cursor, Aider, etc.) working in related repositories, they need a way to communicate. Schema changes in one repo affect another. Deployments need coordination. But most multi-agent tools are overengineered for this.
+
+agent-msg is the simplest thing that works: a shared SQLite database with three bash scripts.
+
+## Requirements
+
+- bash
+- sqlite3 (pre-installed on macOS and most Linux distros)
+
+**Windows**: Use WSL or Git Bash. Install sqlite3 if not present.
+
+**Linux**: If sqlite3 is missing: `sudo apt install sqlite3`
+
+## Install
 
 ```bash
-# Init the database (one time)
-sqlite3 ~/repos/agent-msg/messages.db < ~/repos/agent-msg/setup.sql
-
-# Symlink to PATH
-ln -sf ~/repos/agent-msg/agent-pub ~/.local/bin/agent-pub
-ln -sf ~/repos/agent-msg/agent-check ~/.local/bin/agent-check
-ln -sf ~/repos/agent-msg/agent-ack ~/.local/bin/agent-ack
+git clone https://github.com/your-user/agent-msg.git
+cd agent-msg
+./install.sh
 ```
 
-Set `AGENT_NAME` in each repo/session to identify the sender:
+This symlinks the scripts to `~/.local/bin` and initializes the database. Make sure `~/.local/bin` is on your PATH.
+
+To install to a different location:
 
 ```bash
-export AGENT_NAME="ripit-app"
+./install.sh /usr/local/bin
 ```
 
 ## Usage
 
-### Publish
+Set `AGENT_NAME` in each terminal/session to identify the sender:
+
+```bash
+export AGENT_NAME="my-app"
+```
+
+### Publish a message
 
 ```bash
 agent-pub <project/channel> <message>
 ```
 
 ```bash
-agent-pub ripit/infra "Prisma schema changed - Exercise has new category field"
-agent-pub ripit/app "Cloud Run worker redeployed"
-agent-pub homelab/plex "New media synced"
+agent-pub myproject/backend "Database schema changed - User table has new email_verified column"
+agent-pub myproject/frontend "API response format changed for /api/users endpoint"
+agent-pub infra/deploy "Backend service redeployed to staging"
 ```
 
-### Check messages
+### Check for messages
 
 ```bash
 agent-check [topic-prefix]
 ```
 
 ```bash
-agent-check                  # all unread
-agent-check ripit             # all unread under ripit/*
-agent-check ripit/infra       # exact topic only
+agent-check                      # all unread messages
+agent-check myproject             # all unread under myproject/*
+agent-check myproject/backend     # exact topic only
 ```
 
-### Acknowledge
+### Acknowledge messages
 
 ```bash
 agent-ack <id|all> [topic-prefix]
 ```
 
 ```bash
-agent-ack 5                  # mark message 5 as read
-agent-ack all ripit/infra     # mark all ripit/infra as read
-agent-ack all ripit           # mark all ripit/* as read
-agent-ack all                 # mark everything as read
+agent-ack 5                      # mark message 5 as read
+agent-ack all myproject/backend   # mark all myproject/backend as read
+agent-ack all myproject           # mark all myproject/* as read
+agent-ack all                     # mark everything as read
 ```
 
 ## Topic hierarchy
 
-Topics use `project/channel` format. Prefix queries match all sub-topics:
+Topics follow a `project/channel` convention. When you query by prefix (no `/`), it matches all sub-topics:
 
 ```
-ripit/app         - app repo messages
-ripit/infra       - infra repo messages
-ripit              - matches both of the above
-homelab/plex      - plex server messages
-homelab/network   - network messages
-homelab            - matches both of the above
+myproject/backend     - backend repo messages
+myproject/frontend    - frontend repo messages
+myproject             - matches both of the above
+
+infra/deploy          - deployment notifications
+infra/monitoring      - monitoring alerts
+infra                 - matches both of the above
 ```
 
-## Claude Code integration
+You can use whatever hierarchy makes sense for your setup.
 
-Add to each repo's `CLAUDE.md`:
+## AI agent integration
+
+Add something like this to each repo's context file (e.g., `CLAUDE.md`, `.cursorrules`, etc.):
 
 ```markdown
 ## Agent Messaging
-This agent is `<agent-name>`. Check for messages periodically with `agent-check <topic>`.
-Publish updates for other agents with `agent-pub <project/channel> <message>`.
+This agent is `my-backend`. Periodically check for messages with `agent-check myproject/backend`.
+When making changes that affect other repos, notify them with `agent-pub myproject/<channel> <message>`.
 ```
+
+Your AI agent will pick up the instructions and use the commands naturally.
+
+## Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `AGENT_NAME` | `unknown` | Identifies the sender in messages |
+| `AGENT_MSG_DB` | `<install-dir>/messages.db` | Override the database location |
 
 ## How it works
 
-- SQLite database at `~/repos/agent-msg/messages.db`
-- WAL mode enabled for safe concurrent reads/writes
-- Messages persist until acknowledged
-- No daemons, no containers, no infrastructure
+- Messages are stored in a SQLite database with a single `messages` table
+- WAL mode is enabled for safe concurrent reads and writes from multiple agents
+- Messages persist until explicitly acknowledged
+- No daemons, no containers, no background processes
+- Scripts resolve the database path relative to their own location (works via symlinks)
+
+## Uninstall
+
+```bash
+rm ~/.local/bin/agent-pub ~/.local/bin/agent-check ~/.local/bin/agent-ack
+rm -rf /path/to/agent-msg
+```
