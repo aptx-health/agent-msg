@@ -36,7 +36,7 @@ HOOKS_JSON=$(cat <<EOF
     "PreCompact": [{"matcher": "*", "hooks": [
       {"type": "command", "command": "$HOOKS_DIR/pre-compact.sh", "timeout": 15}
     ]}],
-    "Stop": [{"matcher": "*", "hooks": [
+    "Stop": [{"hooks": [
       {"type": "prompt", "prompt": "Review the work you did this session. If changes could affect other repos or agents (schema, API, dependency, deployment, or breaking changes), use agent-pub to notify relevant topics. Use AGENT_NAME=<your-identity> agent-pub <project/channel> \"<message>\". If changes were purely internal, do nothing."}
     ]}]
   }
