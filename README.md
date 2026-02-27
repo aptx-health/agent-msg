@@ -171,7 +171,6 @@ This writes `.claude/settings.local.json` in each target project with three hook
 
 - **SessionStart** — injects the messaging skill, claims identity, checks inbox
 - **PreCompact** — re-injects everything after context compaction so the agent doesn't forget
-- **Stop** — prompts the agent to publish messages if its changes affect other repos
 
 No changes to CLAUDE.md needed. Works across all repos you install it into.
 
