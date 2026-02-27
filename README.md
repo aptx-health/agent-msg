@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/agent-msg-banner.png" alt="agent-msg banner" width="700" />
+</p>
+
 # agent-msg
 
 Lightweight message bus for coordinating AI coding agents across repositories. SQLite-backed, zero infrastructure, five shell scripts.
