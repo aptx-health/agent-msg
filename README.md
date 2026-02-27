@@ -155,7 +155,23 @@ You can use whatever hierarchy makes sense for your setup.
 
 ## AI agent integration
 
-### Claude Code skill (recommended)
+### Claude Code hooks (recommended)
+
+Hooks provide fully automatic integration — agents claim identity, check inbox, and learn the messaging skill on every session start, and get prompted to notify other agents when stopping.
+
+```bash
+./setup-hooks.sh ~/repos/project1 ~/repos/project2
+```
+
+This writes `.claude/settings.local.json` in each target project with three hooks:
+
+- **SessionStart** — injects the messaging skill, claims identity, checks inbox
+- **PreCompact** — re-injects everything after context compaction so the agent doesn't forget
+- **Stop** — prompts the agent to publish messages if its changes affect other repos
+
+No changes to CLAUDE.md needed. Works across all repos you install it into.
+
+### Claude Code skill
 
 Copy the skill to your Claude Code skills directory:
 
