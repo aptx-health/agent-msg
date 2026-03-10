@@ -1,0 +1,40 @@
+#!/bin/bash
+# Usage: agent-cleanup <topic-prefix>
+# Deletes messages and their acks matching the topic prefix.
+# Example: agent-cleanup ripit/test    (exact topic)
+# Example: agent-cleanup ripit         (all ripit/* topics)
+# Example: agent-cleanup all           (everything)
+
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do SOURCE="$(readlink "$SOURCE")"; done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+DB="${AGENT_MSG_DB:-$SCRIPT_DIR/messages.db}"
+
+if [ $# -lt 1 ]; then
+  echo "Usage: agent-cleanup <topic-prefix|all>"
+  exit 1
+fi
+
+PREFIX="$1"
+
+if [ "$PREFIX" = "all" ]; then
+  WHERE_CLAUSE="1=1"
+  LABEL="all messages"
+elif echo "$PREFIX" | grep -q '/'; then
+  WHERE_CLAUSE="topic='$PREFIX'"
+  LABEL="[$PREFIX]"
+else
+  WHERE_CLAUSE="(topic='$PREFIX' OR topic LIKE '$PREFIX/%')"
+  LABEL="[$PREFIX/*]"
+fi
+
+COUNT=$(sqlite3 "$DB" "SELECT COUNT(*) FROM messages WHERE $WHERE_CLAUSE;")
+
+if [ "$COUNT" -eq 0 ]; then
+  echo "No messages matching $LABEL"
+  exit 0
+fi
+
+sqlite3 "$DB" "DELETE FROM acks WHERE message_id IN (SELECT id FROM messages WHERE $WHERE_CLAUSE); DELETE FROM messages WHERE $WHERE_CLAUSE;"
+
+echo "Deleted $COUNT messages (and acks) matching $LABEL"
