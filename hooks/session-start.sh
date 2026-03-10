@@ -17,6 +17,9 @@ SKILL_CONTENT=$(cat "$REPO_DIR/skill/SKILL.md" 2>/dev/null || echo "Warning: SKI
 # Claim identity
 IDENTITY=$(agent-whoami 2>/dev/null || echo "unknown (agent-whoami failed)")
 
+# Export AGENT_NAME for agent-check
+export AGENT_NAME="$IDENTITY"
+
 # Check for unread messages
 INBOX=$(agent-check 2>/dev/null || echo "Could not check messages")
 

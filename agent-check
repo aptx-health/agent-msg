@@ -1,22 +1,31 @@
 #!/bin/bash
 # Usage: agent-check [topic-prefix]
+# Requires: AGENT_NAME env var (set via agent-whoami)
 # Example: agent-check ripit/infra   (exact topic)
 # Example: agent-check ripit          (everything under ripit/*)
-# Example: agent-check                (all unread)
+# Example: agent-check                (all unread for this agent)
 
 SOURCE="$0"
 while [ -L "$SOURCE" ]; do SOURCE="$(readlink "$SOURCE")"; done
 SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 DB="${AGENT_MSG_DB:-$SCRIPT_DIR/messages.db}"
 
+if [ -z "$AGENT_NAME" ]; then
+  echo "Error: AGENT_NAME is required. Run agent-whoami first, then export AGENT_NAME=<your-identity>"
+  exit 1
+fi
+
 PREFIX="${1:-}"
 
 if [ -z "$PREFIX" ]; then
-  RESULTS=$(sqlite3 -header -column "$DB" "SELECT id, topic, sender, message, created_at FROM messages WHERE read=0 ORDER BY created_at;")
+  RESULTS=$(sqlite3 -header -column "$DB" \
+    "SELECT m.id, m.topic, m.sender, m.message, m.created_at FROM messages m LEFT JOIN acks a ON m.id = a.message_id AND a.agent_name = '$AGENT_NAME' WHERE a.message_id IS NULL ORDER BY m.created_at;")
 elif echo "$PREFIX" | grep -q '/'; then
-  RESULTS=$(sqlite3 -header -column "$DB" "SELECT id, topic, sender, message, created_at FROM messages WHERE topic='$PREFIX' AND read=0 ORDER BY created_at;")
+  RESULTS=$(sqlite3 -header -column "$DB" \
+    "SELECT m.id, m.topic, m.sender, m.message, m.created_at FROM messages m LEFT JOIN acks a ON m.id = a.message_id AND a.agent_name = '$AGENT_NAME' WHERE m.topic='$PREFIX' AND a.message_id IS NULL ORDER BY m.created_at;")
 else
-  RESULTS=$(sqlite3 -header -column "$DB" "SELECT id, topic, sender, message, created_at FROM messages WHERE (topic='$PREFIX' OR topic LIKE '$PREFIX/%') AND read=0 ORDER BY created_at;")
+  RESULTS=$(sqlite3 -header -column "$DB" \
+    "SELECT m.id, m.topic, m.sender, m.message, m.created_at FROM messages m LEFT JOIN acks a ON m.id = a.message_id AND a.agent_name = '$AGENT_NAME' WHERE (m.topic='$PREFIX' OR m.topic LIKE '$PREFIX/%') AND a.message_id IS NULL ORDER BY m.created_at;")
 fi
 
 if [ -z "$RESULTS" ]; then

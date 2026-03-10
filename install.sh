@@ -16,6 +16,8 @@ ln -sf "$SCRIPT_DIR/agent-whoami" "$BIN_DIR/agent-whoami"
 
 chmod +x "$SCRIPT_DIR/hooks/session-start.sh" "$SCRIPT_DIR/hooks/pre-compact.sh" "$SCRIPT_DIR/setup-hooks.sh"
 
+# Remove old database and recreate with new schema
+rm -f "$SCRIPT_DIR/messages.db"
 sqlite3 "$SCRIPT_DIR/messages.db" < "$SCRIPT_DIR/setup.sql"
 
 echo "Installed agent-msg:"

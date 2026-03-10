@@ -1,6 +1,7 @@
 #!/bin/bash
 # Usage: agent-topics [hours] [project-prefix]
 # Show recently active topics with message counts and last activity
+# If AGENT_NAME is set, includes per-agent unread count
 #
 # Example: agent-topics              (active in last 24h)
 # Example: agent-topics 72           (active in last 72h)
@@ -14,40 +15,53 @@ DB="${AGENT_MSG_DB:-$SCRIPT_DIR/messages.db}"
 HOURS="${1:-24}"
 PREFIX="${2:-}"
 
+if [ -n "$AGENT_NAME" ]; then
+  # With identity: show per-agent unread count
+  UNREAD_COL="COUNT(CASE WHEN a.message_id IS NULL THEN 1 END) AS unread,"
+  JOIN_CLAUSE="LEFT JOIN acks a ON m.id = a.message_id AND a.agent_name = '$AGENT_NAME'"
+else
+  # Without identity: no unread column
+  UNREAD_COL=""
+  JOIN_CLAUSE=""
+fi
+
 if [ -z "$PREFIX" ]; then
   RESULTS=$(sqlite3 -header -column "$DB" "\
-    SELECT topic, \
+    SELECT m.topic, \
            COUNT(*) AS msgs, \
-           COUNT(CASE WHEN read=0 THEN 1 END) AS unread, \
-           GROUP_CONCAT(DISTINCT sender) AS senders, \
-           MAX(created_at) AS last_activity \
-    FROM messages \
-    WHERE created_at >= datetime('now', '-$HOURS hours') \
-    GROUP BY topic \
+           ${UNREAD_COL} \
+           GROUP_CONCAT(DISTINCT m.sender) AS senders, \
+           MAX(m.created_at) AS last_activity \
+    FROM messages m \
+    ${JOIN_CLAUSE} \
+    WHERE m.created_at >= datetime('now', '-$HOURS hours') \
+    GROUP BY m.topic \
     ORDER BY last_activity DESC;")
 elif echo "$PREFIX" | grep -q '/'; then
   RESULTS=$(sqlite3 -header -column "$DB" "\
-    SELECT topic, \
+    SELECT m.topic, \
            COUNT(*) AS msgs, \
-           COUNT(CASE WHEN read=0 THEN 1 END) AS unread, \
-           GROUP_CONCAT(DISTINCT sender) AS senders, \
-           MAX(created_at) AS last_activity \
-    FROM messages \
-    WHERE topic='$PREFIX' \
-      AND created_at >= datetime('now', '-$HOURS hours') \
-    GROUP BY topic \
+           ${UNREAD_COL} \
+           GROUP_CONCAT(DISTINCT m.sender) AS senders, \
+           MAX(m.created_at) AS last_activity \
+    FROM messages m \
+    ${JOIN_CLAUSE} \
+    WHERE m.topic='$PREFIX' \
+      AND m.created_at >= datetime('now', '-$HOURS hours') \
+    GROUP BY m.topic \
     ORDER BY last_activity DESC;")
 else
   RESULTS=$(sqlite3 -header -column "$DB" "\
-    SELECT topic, \
+    SELECT m.topic, \
            COUNT(*) AS msgs, \
-           COUNT(CASE WHEN read=0 THEN 1 END) AS unread, \
-           GROUP_CONCAT(DISTINCT sender) AS senders, \
-           MAX(created_at) AS last_activity \
-    FROM messages \
-    WHERE (topic='$PREFIX' OR topic LIKE '$PREFIX/%') \
-      AND created_at >= datetime('now', '-$HOURS hours') \
-    GROUP BY topic \
+           ${UNREAD_COL} \
+           GROUP_CONCAT(DISTINCT m.sender) AS senders, \
+           MAX(m.created_at) AS last_activity \
+    FROM messages m \
+    ${JOIN_CLAUSE} \
+    WHERE (m.topic='$PREFIX' OR m.topic LIKE '$PREFIX/%') \
+      AND m.created_at >= datetime('now', '-$HOURS hours') \
+    GROUP BY m.topic \
     ORDER BY last_activity DESC;")
 fi
 

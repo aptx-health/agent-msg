@@ -1,14 +1,20 @@
 #!/bin/bash
 # Usage: agent-ack <id|all> [topic-prefix]
-# Example: agent-ack 5              (mark message 5 as read)
-# Example: agent-ack all ripit/infra (mark all ripit/infra as read)
-# Example: agent-ack all ripit       (mark all ripit/* as read)
-# Example: agent-ack all             (mark everything as read)
+# Requires: AGENT_NAME env var (set via agent-whoami)
+# Example: agent-ack 5              (ack message 5 for this agent)
+# Example: agent-ack all ripit/infra (ack all ripit/infra for this agent)
+# Example: agent-ack all ripit       (ack all ripit/* for this agent)
+# Example: agent-ack all             (ack everything for this agent)
 
 SOURCE="$0"
 while [ -L "$SOURCE" ]; do SOURCE="$(readlink "$SOURCE")"; done
 SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 DB="${AGENT_MSG_DB:-$SCRIPT_DIR/messages.db}"
+
+if [ -z "$AGENT_NAME" ]; then
+  echo "Error: AGENT_NAME is required. Run agent-whoami first, then export AGENT_NAME=<your-identity>"
+  exit 1
+fi
 
 if [ $# -lt 1 ]; then
   echo "Usage: agent-ack <id|all> [topic-prefix]"
@@ -18,16 +24,16 @@ fi
 if [ "$1" = "all" ]; then
   PREFIX="${2:-}"
   if [ -z "$PREFIX" ]; then
-    sqlite3 "$DB" "UPDATE messages SET read=1 WHERE read=0;"
-    echo "Marked all messages as read"
+    sqlite3 "$DB" "INSERT OR IGNORE INTO acks (message_id, agent_name) SELECT m.id, '$AGENT_NAME' FROM messages m LEFT JOIN acks a ON m.id = a.message_id AND a.agent_name = '$AGENT_NAME' WHERE a.message_id IS NULL;"
+    echo "Acked all messages for $AGENT_NAME"
   elif echo "$PREFIX" | grep -q '/'; then
-    sqlite3 "$DB" "UPDATE messages SET read=1 WHERE topic='$PREFIX' AND read=0;"
-    echo "Marked all [$PREFIX] messages as read"
+    sqlite3 "$DB" "INSERT OR IGNORE INTO acks (message_id, agent_name) SELECT m.id, '$AGENT_NAME' FROM messages m LEFT JOIN acks a ON m.id = a.message_id AND a.agent_name = '$AGENT_NAME' WHERE m.topic='$PREFIX' AND a.message_id IS NULL;"
+    echo "Acked all [$PREFIX] messages for $AGENT_NAME"
   else
-    sqlite3 "$DB" "UPDATE messages SET read=1 WHERE (topic='$PREFIX' OR topic LIKE '$PREFIX/%') AND read=0;"
-    echo "Marked all [$PREFIX/*] messages as read"
+    sqlite3 "$DB" "INSERT OR IGNORE INTO acks (message_id, agent_name) SELECT m.id, '$AGENT_NAME' FROM messages m LEFT JOIN acks a ON m.id = a.message_id AND a.agent_name = '$AGENT_NAME' WHERE (m.topic='$PREFIX' OR m.topic LIKE '$PREFIX/%') AND a.message_id IS NULL;"
+    echo "Acked all [$PREFIX/*] messages for $AGENT_NAME"
   fi
 else
-  sqlite3 "$DB" "UPDATE messages SET read=1 WHERE id=$1;"
-  echo "Marked message $1 as read"
+  sqlite3 "$DB" "INSERT OR IGNORE INTO acks (message_id, agent_name) VALUES ($1, '$AGENT_NAME');"
+  echo "Acked message $1 for $AGENT_NAME"
 fi
