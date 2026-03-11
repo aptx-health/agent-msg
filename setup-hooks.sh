@@ -19,12 +19,10 @@ if [ $# -eq 0 ]; then
 fi
 
 # Verify hook scripts exist
-for script in session-start.sh pre-compact.sh; do
-  if [ ! -f "$HOOKS_DIR/$script" ]; then
-    echo "Error: $HOOKS_DIR/$script not found. Run install.sh first." >&2
-    exit 1
-  fi
-done
+if [ ! -f "$HOOKS_DIR/session-start.sh" ]; then
+  echo "Error: $HOOKS_DIR/session-start.sh not found. Run install.sh first." >&2
+  exit 1
+fi
 
 # Build the hooks JSON
 HOOKS_JSON=$(cat <<EOF
@@ -32,9 +30,6 @@ HOOKS_JSON=$(cat <<EOF
   "hooks": {
     "SessionStart": [{"matcher": "*", "hooks": [
       {"type": "command", "command": "$HOOKS_DIR/session-start.sh", "timeout": 15}
-    ]}],
-    "PreCompact": [{"matcher": "*", "hooks": [
-      {"type": "command", "command": "$HOOKS_DIR/pre-compact.sh", "timeout": 15}
     ]}]
   }
 }

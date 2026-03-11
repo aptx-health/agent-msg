@@ -167,10 +167,9 @@ Hooks provide fully automatic integration — agents claim identity, check inbox
 ./setup-hooks.sh ~/repos/project1 ~/repos/project2
 ```
 
-This writes `.claude/settings.local.json` in each target project with three hooks:
+This writes `.claude/settings.local.json` in each target project with a hook:
 
 - **SessionStart** — injects the messaging skill, claims identity, checks inbox
-- **PreCompact** — re-injects everything after context compaction so the agent doesn't forget
 
 No changes to CLAUDE.md needed. Works across all repos you install it into.
 

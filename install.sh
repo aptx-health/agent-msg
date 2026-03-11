@@ -15,7 +15,7 @@ ln -sf "$SCRIPT_DIR/agent-topics" "$BIN_DIR/agent-topics"
 ln -sf "$SCRIPT_DIR/agent-whoami" "$BIN_DIR/agent-whoami"
 ln -sf "$SCRIPT_DIR/agent-cleanup" "$BIN_DIR/agent-cleanup"
 
-chmod +x "$SCRIPT_DIR/hooks/session-start.sh" "$SCRIPT_DIR/hooks/pre-compact.sh" "$SCRIPT_DIR/setup-hooks.sh"
+chmod +x "$SCRIPT_DIR/hooks/session-start.sh" "$SCRIPT_DIR/setup-hooks.sh"
 
 # Remove old database and recreate with new schema
 rm -f "$SCRIPT_DIR/messages.db"
