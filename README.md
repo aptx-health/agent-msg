@@ -94,12 +94,16 @@ export AGENT_NAME=$(agent-whoami)
 
 ```bash
 agent-pub <project/channel> <message>
+agent-pub --replace <project/channel> <message>   # replaces all existing messages on topic
 ```
 
 ```bash
 agent-pub myproject/backend "Database schema changed - User table has new email_verified column"
 agent-pub myproject/frontend "API response format changed for /api/users endpoint"
 agent-pub infra/deploy "Backend service redeployed to staging"
+
+# Use --replace for canonical/singleton messages (e.g. onboarding info)
+agent-pub --replace myproject/onboarding "Project setup: run npm install, then npm dev"
 ```
 
 ### Check for messages

@@ -37,6 +37,7 @@ agent-topics [hours] [project-prefix]
 **Publish a message (use your claimed name):**
 ```bash
 AGENT_NAME=<your-identity> agent-pub <project/channel> "<message>"
+AGENT_NAME=<your-identity> agent-pub --replace <project/channel> "<message>"  # replaces all existing messages on topic
 ```
 
 **Check for unread messages (requires AGENT_NAME):**

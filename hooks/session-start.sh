@@ -1,53 +1,31 @@
 #!/bin/bash
 # Claude Code SessionStart hook for agent-msg
-# Injects the messaging skill, claims identity, and checks inbox.
+# Informs the agent about messaging commands and claims identity.
 # Returns JSON with systemMessage for Claude's context.
 
 set -euo pipefail
 
-# Resolve agent-msg repo location via symlink
-SOURCE="$0"
-while [ -L "$SOURCE" ]; do SOURCE="$(readlink "$SOURCE")"; done
-SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-# Read the skill definition
-SKILL_CONTENT=$(cat "$REPO_DIR/skill/SKILL.md" 2>/dev/null || echo "Warning: SKILL.md not found")
-
 # Claim identity
 IDENTITY=$(agent-whoami 2>/dev/null || echo "unknown (agent-whoami failed)")
 
-# Export AGENT_NAME for agent-check
-export AGENT_NAME="$IDENTITY"
+MSG="# Agent Messaging
 
-# Check for unread messages
-INBOX=$(agent-check 2>/dev/null || echo "Could not check messages")
+You have agent-msg installed for cross-agent messaging. Your identity is: **${IDENTITY}**
 
-# Build the system message
-MSG="# Agent Messaging (auto-injected by SessionStart hook)
+## Commands (always set AGENT_NAME=${IDENTITY})
 
-${SKILL_CONTENT}
+- \`agent-whoami\` — claim/reclaim your identity
+- \`agent-topics [hours] [prefix]\` — browse active topics
+- \`agent-check [topic-prefix]\` — view unread messages
+- \`agent-pub <topic> \"<message>\"\` — publish a message
+- \`agent-pub --replace <topic> \"<message>\"\` — publish, replacing all prior messages on topic
+- \`agent-ack <id|all> [topic-prefix]\` — mark messages read
 
----
+Topics use \`project/channel\` hierarchy (e.g. \`myapp/backend\`). Prefix queries match all sub-topics.
 
-## Your Identity
-
-You claimed: **${IDENTITY}**
-
-Remember this name. Use it as AGENT_NAME when publishing messages:
-\`\`\`bash
-AGENT_NAME=${IDENTITY} agent-pub <project/channel> \"<message>\"
-\`\`\`
-
-## Inbox
-
-${INBOX}
-
----
-Use agent-ack to acknowledge messages after reading them."
+Publish when you make changes that affect other agents (schema, API, deps, breaking changes). Keep messages concise and actionable."
 
 # Output JSON with systemMessage
-# Use jq if available, fall back to python3
 if command -v jq &>/dev/null; then
   echo "$MSG" | jq -Rs '{"systemMessage": .}'
 else
